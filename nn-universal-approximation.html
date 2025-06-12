@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Neural Network Universal Approximation Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .control-group {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        .control-group span {
+            display: inline-block;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .button-group {
+            text-align: center;
+            margin: 20px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 0 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+        .info {
+            background-color: #e7f3ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        select {
+            width: 100%;
+            padding: 5px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+        .status {
+            text-align: center;
+            font-size: 18px;
+            margin: 10px 0;
+            color: #333;
+        }
+        .network-architecture {
+            background-color: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .layer-config {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            gap: 10px;
+        }
+        .layer-input {
+            width: 80px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .add-layer-btn, .remove-layer-btn {
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .remove-layer-btn {
+            background-color: #dc3545;
+        }
+        .architecture-display {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+        }
+        .comparison-results {
+            margin-top: 20px;
+        }
+        .arch-result {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .arch-result h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Deep Neural Network Universal Approximation Theorem Demo</h1>
+        
+        <div class="info">
+            <strong>Demonstration:</strong> This interactive tool shows how neural networks with multiple hidden layers can approximate virtually any continuous function. 
+            Configure the network architecture and adjust parameters to see how depth and width affect approximation capability!
+        </div>
+
+        <div class="network-architecture">
+            <h3>Network Architecture Configuration</h3>
+            <div id="layers-container">
+                <div class="layer-config">
+                    <label>Hidden Layer 1:</label>
+                    <input type="number" class="layer-input" value="24" min="1" max="100">
+                    <span>neurons</span>
+                </div>
+            </div>
+            <div style="margin-top: 10px;">
+                <button class="add-layer-btn" onclick="addLayer()">Add Layer</button>
+                <button class="remove-layer-btn" onclick="removeLayer()">Remove Layer</button>
+            </div>
+            <div class="architecture-display" id="architecture-display">
+                Architecture: Input (1) → Hidden (24) → Output (1)
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="function-select">Target Function:</label>
+                <select id="function-select">
+                    <option value="sine">sin(20x) + 3x</option>
+                    <option value="polynomial">x³ - 2x² + x</option>
+                    <option value="gaussian">exp(-10(x-0.5)²)</option>
+                    <option value="step">Step Function</option>
+                    <option value="sawtooth">Sawtooth Wave</option>
+                    <option value="complex">sin(10x) × exp(-2x)</option>
+                    <option value="abs">|sin(5x)| + 0.1x</option>
+                    <option value="composite">sin(x) + sin(3x)/3 + sin(5x)/5</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="activation">Activation Function:</label>
+                <select id="activation">
+                    <option value="tanh">Tanh</option>
+                    <option value="relu">ReLU</option>
+                    <option value="sigmoid">Sigmoid</option>
+                    <option value="leaky_relu">Leaky ReLU</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="learning-rate">Learning Rate: <span id="learning-rate-value">0.01</span></label>
+                <input type="range" id="learning-rate" min="0.001" max="0.1" value="0.01" step="0.001">
+            </div>
+            
+            <div class="control-group">
+                <label for="epochs">Epochs: <span id="epochs-value">1000</span></label>
+                <input type="range" id="epochs" min="100" max="5000" value="1000" step="100">
+            </div>
+            
+            <div class="control-group">
+                <label for="noise-level">Noise Level: <span id="noise-level-value">0.1</span></label>
+                <input type="range" id="noise-level" min="0" max="0.5" value="0.1" step="0.01">
+            </div>
+            
+            <div class="control-group">
+                <label for="data-points">Data Points: <span id="data-points-value">100</span></label>
+                <input type="range" id="data-points" min="20" max="300" value="100" step="10">
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="train-btn" onclick="startTraining()">Start Training</button>
+            <button id="reset-btn" onclick="resetNetwork()">Reset Network</button>
+            <button id="compare-btn" onclick="compareArchitectures()">Compare Architectures</button>
+        </div>
+
+        <div class="status" id="status">Ready to train</div>
+
+        <div class="charts">
+            <div class="chart-container">
+                <canvas id="data-chart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="loss-chart"></canvas>
+            </div>
+        </div>
+        
+        <!-- Comparison Modal -->
+        <div id="comparison-modal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2>Architecture Comparison Results</h2>
+                <div id="comparison-status">Preparing comparison...</div>
+                <div class="progress-bar">
+                    <div id="comparison-progress" class="progress-fill" style="width: 0%"></div>
+                </div>
+                <div id="comparison-results" class="comparison-results"></div>
+                <canvas id="comparison-chart" style="margin-top: 20px; height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Deep Neural Network Implementation
+        class DeepNeuralNetwork {
+            constructor(layerSizes, learningRate, activation = 'tanh') {
+                this.layers = layerSizes;
+                this.eta = learningRate;
+                this.activation = activation;
+                this.initializeWeights();
+            }
+
+            initializeWeights() {
+                this.weights = [];
+                this.biases = [];
+                
+                // Initialize weights for each layer
+                for (let i = 0; i < this.layers.length - 1; i++) {
+                    const inputSize = this.layers[i];
+                    const outputSize = this.layers[i + 1];
+                    
+                    // Xavier/He initialization based on activation
+                    const scale = this.activation === 'relu' || this.activation === 'leaky_relu' 
+                        ? Math.sqrt(2.0 / inputSize) 
+                        : Math.sqrt(1.0 / inputSize);
+                    
+                    const w = Array(outputSize).fill(0).map(() => 
+                        Array(inputSize).fill(0).map(() => (Math.random() - 0.5) * 2 * scale)
+                    );
+                    const b = Array(outputSize).fill(0);
+                    
+                    this.weights.push(w);
+                    this.biases.push(b);
+                }
+            }
+
+            // Activation functions
+            activate(x) {
+                switch(this.activation) {
+                    case 'tanh':
+                        return Math.tanh(x);
+                    case 'relu':
+                        return Math.max(0, x);
+                    case 'sigmoid':
+                        return 1 / (1 + Math.exp(-x));
+                    case 'leaky_relu':
+                        return x > 0 ? x : 0.01 * x;
+                    default:
+                        return Math.tanh(x);
+                }
+            }
+
+            activateDerivative(x) {
+                switch(this.activation) {
+                    case 'tanh':
+                        const t = Math.tanh(x);
+                        return 1 - t * t;
+                    case 'relu':
+                        return x > 0 ? 1 : 0;
+                    case 'sigmoid':
+                        const s = 1 / (1 + Math.exp(-x));
+                        return s * (1 - s);
+                    case 'leaky_relu':
+                        return x > 0 ? 1 : 0.01;
+                    default:
+                        return 1;
+                }
+            }
+
+            forward(x) {
+                this.activations = [[x]]; // Store activations for backprop
+                this.zs = []; // Store pre-activation values
+                
+                let activation = [x];
+                
+                for (let i = 0; i < this.weights.length; i++) {
+                    const z = [];
+                    const nextActivation = [];
+                    
+                    for (let j = 0; j < this.weights[i].length; j++) {
+                        let sum = this.biases[i][j];
+                        for (let k = 0; k < activation.length; k++) {
+                            sum += this.weights[i][j][k] * activation[k];
+                        }
+                        z.push(sum);
+                        
+                        // Use linear activation for output layer
+                        if (i === this.weights.length - 1) {
+                            nextActivation.push(sum);
+                        } else {
+                            nextActivation.push(this.activate(sum));
+                        }
+                    }
+                    
+                    this.zs.push(z);
+                    this.activations.push(nextActivation);
+                    activation = nextActivation;
+                }
+                
+                return activation[0]; // Return scalar output
+            }
+
+            backward(x, y, target) {
+                const m = this.weights.length;
+                const deltaWeights = [];
+                const deltaBiases = [];
+                
+                // Initialize gradients
+                for (let i = 0; i < m; i++) {
+                    deltaWeights.push(this.weights[i].map(row => row.map(() => 0)));
+                    deltaBiases.push(this.biases[i].map(() => 0));
+                }
+                
+                // Compute output layer error
+                let delta = [target - y];
+                
+                // Backpropagate error
+                for (let l = m - 1; l >= 0; l--) {
+                    // Update weights and biases
+                    for (let j = 0; j < delta.length; j++) {
+                        deltaBiases[l][j] = delta[j];
+                        for (let k = 0; k < this.activations[l].length; k++) {
+                            deltaWeights[l][j][k] = delta[j] * this.activations[l][k];
+                        }
+                    }
+                    
+                    // Compute error for previous layer
+                    if (l > 0) {
+                        const newDelta = [];
+                        for (let k = 0; k < this.weights[l][0].length; k++) {
+                            let error = 0;
+                            for (let j = 0; j < delta.length; j++) {
+                                error += delta[j] * this.weights[l][j][k];
+                            }
+                            error *= this.activateDerivative(this.zs[l-1][k]);
+                            newDelta.push(error);
+                        }
+                        delta = newDelta;
+                    }
+                }
+                
+                // Update weights and biases
+                for (let l = 0; l < m; l++) {
+                    for (let j = 0; j < this.weights[l].length; j++) {
+                        this.biases[l][j] += this.eta * deltaBiases[l][j];
+                        for (let k = 0; k < this.weights[l][j].length; k++) {
+                            this.weights[l][j][k] += this.eta * deltaWeights[l][j][k];
+                        }
+                    }
+                }
+            }
+
+            train(xData, yData, epochs, callback) {
+                const losses = [];
+                
+                for (let epoch = 0; epoch < epochs; epoch++) {
+                    let totalLoss = 0;
+                    
+                    // Shuffle data
+                    const indices = Array.from({length: xData.length}, (_, i) => i);
+                    for (let i = indices.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [indices[i], indices[j]] = [indices[j], indices[i]];
+                    }
+                    
+                    // Train on each sample
+                    for (const idx of indices) {
+                        const output = this.forward(xData[idx]);
+                        this.backward(xData[idx], output, yData[idx]);
+                        totalLoss += Math.pow(yData[idx] - output, 2);
+                    }
+                    
+                    const avgLoss = totalLoss / xData.length;
+                    losses.push(avgLoss);
+                    
+                    if (callback && epoch % 10 === 0) {
+                        callback(epoch, avgLoss);
+                    }
+                }
+                return losses;
+            }
+        }
+
+        // Target functions
+        const targetFunctions = {
+            sine: x => Math.sin(20 * x) + 3 * x,
+            polynomial: x => Math.pow(x, 3) - 2 * Math.pow(x, 2) + x,
+            gaussian: x => Math.exp(-10 * Math.pow(x - 0.5, 2)),
+            step: x => x < 0.3 ? 0 : (x < 0.7 ? 1 : 0),
+            sawtooth: x => 2 * (x * 3 - Math.floor(x * 3 + 0.5)),
+            complex: x => Math.sin(10 * x) * Math.exp(-2 * x),
+            abs: x => Math.abs(Math.sin(5 * x)) + 0.1 * x,
+            composite: x => Math.sin(x * Math.PI) + Math.sin(3 * x * Math.PI) / 3 + Math.sin(5 * x * Math.PI) / 5
+        };
+
+        // Global variables
+        let dataChart, lossChart, comparisonChart;
+        let nn;
+        let isTraining = false;
+
+        // Layer management
+        function updateArchitectureDisplay() {
+            const layerInputs = document.querySelectorAll('.layer-input');
+            const layers = [1]; // Input layer
+            layerInputs.forEach(input => layers.push(parseInt(input.value)));
+            layers.push(1); // Output layer
+            
+            const archStr = layers.join(' → ');
+            document.getElementById('architecture-display').textContent = 
+                `Architecture: ${archStr} (${layers.reduce((a, b) => a + b, 0)} total neurons)`;
+        }
+
+        function addLayer() {
+            const container = document.getElementById('layers-container');
+            const layerCount = container.children.length;
+            
+            if (layerCount >= 5) {
+                alert('Maximum 5 hidden layers allowed for performance reasons');
+                return;
+            }
+            
+            const newLayer = document.createElement('div');
+            newLayer.className = 'layer-config';
+            newLayer.innerHTML = `
+                <label>Hidden Layer ${layerCount + 1}:</label>
+                <input type="number" class="layer-input" value="16" min="1" max="100">
+                <span>neurons</span>
+            `;
+            
+            container.appendChild(newLayer);
+            
+            // Add event listener
+            newLayer.querySelector('.layer-input').addEventListener('input', updateArchitectureDisplay);
+            updateArchitectureDisplay();
+        }
+
+        function removeLayer() {
+            const container = document.getElementById('layers-container');
+            if (container.children.length > 1) {
+                container.removeChild(container.lastChild);
+                updateArchitectureDisplay();
+            }
+        }
+
+        // Initialize charts
+        function initCharts() {
+            const dataCtx = document.getElementById('data-chart').getContext('2d');
+            const lossCtx = document.getElementById('loss-chart').getContext('2d');
+
+            dataChart = new Chart(dataCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [
+                        {
+                            label: 'Training Data',
+                            data: [],
+                            backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                            borderColor: 'rgba(0, 123, 255, 1)',
+                            pointRadius: 4
+                        },
+                        {
+                            label: 'NN Prediction',
+                            data: [],
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            showLine: true,
+                            pointRadius: 0,
+                            borderWidth: 2,
+                            type: 'line'
+                        },
+                        {
+                            label: 'True Function',
+                            data: [],
+                            backgroundColor: 'rgba(0, 255, 0, 0.3)',
+                            borderColor: 'rgba(0, 255, 0, 0.7)',
+                            showLine: true,
+                            pointRadius: 0,
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            type: 'line'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Function Approximation'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'x'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'y'
+                            }
+                        }
+                    }
+                }
+            });
+
+            lossChart = new Chart(lossCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Training Loss (MSE)',
+                        data: [],
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Training Loss Over Time'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Epoch'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Loss (MSE)'
+                            },
+                            type: 'logarithmic'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Generate training data
+        function generateData() {
+            const funcName = document.getElementById('function-select').value;
+            const numPoints = parseInt(document.getElementById('data-points').value);
+            const noiseLevel = parseFloat(document.getElementById('noise-level').value);
+            const func = targetFunctions[funcName];
+
+            const xData = [];
+            const yData = [];
+            
+            for (let i = 0; i < numPoints; i++) {
+                const x = i / (numPoints - 1);
+                const noise = (Math.random() - 0.5) * 2 * noiseLevel;
+                const y = func(x) + noise;
+                
+                xData.push(x);
+                yData.push(y);
+            }
+
+            return { xData, yData };
+        }
+
+        // Update slider values
+        document.querySelectorAll('input[type="range"]').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const valueSpan = document.getElementById(e.target.id + '-value');
+                valueSpan.textContent = e.target.value;
+            });
+        });
+
+        // Start training
+        async function startTraining() {
+            if (isTraining) return;
+            
+            isTraining = true;
+            document.getElementById('train-btn').disabled = true;
+            document.getElementById('status').textContent = 'Training...';
+
+            // Get network architecture
+            const layerInputs = document.querySelectorAll('.layer-input');
+            const hiddenLayers = Array.from(layerInputs).map(input => parseInt(input.value));
+            const layers = [1, ...hiddenLayers, 1]; // Input, hidden layers, output
+
+            const learningRate = parseFloat(document.getElementById('learning-rate').value);
+            const epochs = parseInt(document.getElementById('epochs').value);
+            const activation = document.getElementById('activation').value;
+
+            // Generate data
+            const { xData, yData } = generateData();
+            
+            // Create neural network
+            nn = new DeepNeuralNetwork(layers, learningRate, activation);
+
+            // Update data chart with training data
+            dataChart.data.datasets[0].data = xData.map((x, i) => ({ x, y: yData[i] }));
+            
+            // Add true function
+            const funcName = document.getElementById('function-select').value;
+            const func = targetFunctions[funcName];
+            const trueFuncData = [];
+            for (let i = 0; i <= 200; i++) {
+                const x = i / 200;
+                trueFuncData.push({ x, y: func(x) });
+            }
+            dataChart.data.datasets[2].data = trueFuncData;
+            dataChart.update();
+
+            // Clear loss chart
+            lossChart.data.labels = [];
+            lossChart.data.datasets[0].data = [];
+            lossChart.update();
+
+            // Train network
+            await new Promise(resolve => {
+                setTimeout(() => {
+                    const losses = nn.train(xData, yData, epochs, (epoch, loss) => {
+                        // Update loss chart
+                        if (epoch % 50 === 0) {
+                            lossChart.data.labels.push(epoch);
+                            lossChart.data.datasets[0].data.push(loss);
+                            lossChart.update('none');
+                        }
+                        
+                        // Update predictions
+                        if (epoch % 100 === 0) {
+                            updatePredictions();
+                            document.getElementById('status').textContent = 
+                                `Training... Epoch: ${epoch}/${epochs}, Loss: ${loss.toFixed(6)}`;
+                        }
+                    });
+
+                    // Final update
+                    lossChart.data.labels = losses.map((_, i) => i);
+                    lossChart.data.datasets[0].data = losses;
+                    lossChart.update();
+                    
+                    updatePredictions();
+                    document.getElementById('status').textContent = 
+                        `Training completed! Final loss: ${losses[losses.length - 1].toFixed(6)}`;
+                    
+                    resolve();
+                }, 100);
+            });
+
+            isTraining = false;
+            document.getElementById('train-btn').disabled = false;
+        }
+
+        // Update predictions
+        function updatePredictions() {
+            if (!nn) return;
+
+            const predictions = [];
+            const numPoints = 200;
+            
+            for (let i = 0; i <= numPoints; i++) {
+                const x = i / numPoints;
+                const y = nn.forward(x);
+                predictions.push({ x, y });
+            }
+
+            dataChart.data.datasets[1].data = predictions;
+            dataChart.update('none');
+        }
+
+        // Compare different architectures
+        async function compareArchitectures() {
+            const modal = document.getElementById('comparison-modal');
+            modal.style.display = 'block';
+            
+            const funcName = document.getElementById('function-select').value;
+            const activation = document.getElementById('activation').value;
+            const { xData, yData } = generateData();
+            
+            const architectures = [
+                { layers: [1, 10, 1], name: 'Shallow (1 layer, 10 neurons)' },
+                { layers: [1, 20, 20, 1], name: 'Medium (2 layers, 20 each)' },
+                { layers: [1, 10, 10, 10, 10, 1], name: 'Deep (4 layers, 10 each)' },
+                { layers: [1, 50, 1], name: 'Wide (1 layer, 50 neurons)' },
+                { layers: [1, 5, 5, 5, 5, 5, 1], name: 'Very Deep (5 layers, 5 each)' }
+            ];
+            
+            const results = [];
+            const resultsDiv = document.getElementById('comparison-results');
+            const statusDiv = document.getElementById('comparison-status');
+            const progressBar = document.getElementById('comparison-progress');
+            
+            resultsDiv.innerHTML = '';
+            
+            // Train each architecture
+            for (let i = 0; i < architectures.length; i++) {
+                const arch = architectures[i];
+                statusDiv.textContent = `Training ${arch.name}...`;
+                progressBar.style.width = `${(i / architectures.length) * 100}%`;
+                
+                await new Promise(resolve => {
+                    setTimeout(() => {
+                        const tempNN = new DeepNeuralNetwork(arch.layers, 0.01, activation);
+                        const losses = tempNN.train(xData, yData, 1000, null);
+                        
+                        // Generate predictions
+                        const predictions = [];
+                        for (let x = 0; x <= 1; x += 0.01) {
+                            predictions.push({ x, y: tempNN.forward(x) });
+                        }
+                        
+                        results.push({
+                            name: arch.name,
+                            architecture: arch.layers,
+                            finalLoss: losses[losses.length - 1],
+                            losses: losses,
+                            predictions: predictions,
+                            totalParams: calculateParams(arch.layers)
+                        });
+                        
+                        resolve();
+                    }, 100);
+                });
+            }
+            
+            progressBar.style.width = '100%';
+            statusDiv.textContent = 'Comparison complete!';
+            
+            // Sort by final loss
+            results.sort((a, b) => a.finalLoss - b.finalLoss);
+            
+            // Display results
+            resultsDiv.innerHTML = '<h3>Results (sorted by performance):</h3>';
+            results.forEach((r, index) => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'arch-result';
+                resultDiv.innerHTML = `
+                    <h4>${index + 1}. ${r.name}</h4>
+                    <p><strong>Architecture:</strong> ${r.architecture.join(' → ')}</p>
+                    <p><strong>Total Parameters:</strong> ${r.totalParams}</p>
+                    <p><strong>Final Loss:</strong> ${r.finalLoss.toFixed(6)}</p>
+                `;
+                resultsDiv.appendChild(resultDiv);
+            });
+            
+            // Create comparison chart
+            createComparisonChart(results);
+        }
+        
+        function calculateParams(layers) {
+            let params = 0;
+            for (let i = 0; i < layers.length - 1; i++) {
+                params += layers[i] * layers[i + 1] + layers[i + 1]; // weights + biases
+            }
+            return params;
+        }
+        
+        function createComparisonChart(results) {
+            const ctx = document.getElementById('comparison-chart').getContext('2d');
+            
+            // Destroy existing chart if any
+            if (comparisonChart) {
+                comparisonChart.destroy();
+            }
+            
+            // Prepare data
+            const datasets = results.map((r, index) => ({
+                label: r.name,
+                data: r.predictions,
+                borderColor: `hsl(${index * 60}, 70%, 50%)`,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 0,
+                type: 'line'
+            }));
+            
+            // Add true function
+            const funcName = document.getElementById('function-select').value;
+            const func = targetFunctions[funcName];
+            const trueFuncData = [];
+            for (let x = 0; x <= 1; x += 0.01) {
+                trueFuncData.push({ x, y: func(x) });
+            }
+            
+            datasets.unshift({
+                label: 'True Function',
+                data: trueFuncData,
+                borderColor: 'black',
+                backgroundColor: 'transparent',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                type: 'line'
+            });
+            
+            comparisonChart = new Chart(ctx, {
+                type: 'scatter',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Architecture Comparison - Function Approximation'
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'x'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'y'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function closeModal() {
+            document.getElementById('comparison-modal').style.display = 'none';
+        }
+
+        // Reset network
+        function resetNetwork() {
+            nn = null;
+            dataChart.data.datasets[0].data = [];
+            dataChart.data.datasets[1].data = [];
+            dataChart.data.datasets[2].data = [];
+            dataChart.update();
+            
+            lossChart.data.labels = [];
+            lossChart.data.datasets[0].data = [];
+            lossChart.update();
+            
+            document.getElementById('status').textContent = 'Ready to train';
+        }
+
+        // Initialize on load
+        window.onload = () => {
+            initCharts();
+            updateArchitectureDisplay();
+            
+            // Add event listeners to initial layer input
+            document.querySelector('.layer-input').addEventListener('input', updateArchitectureDisplay);
+        };
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('comparison-modal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>
